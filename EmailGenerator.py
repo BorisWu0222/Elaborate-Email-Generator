@@ -1,0 +1,409 @@
+import streamlit as st
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+# --- 1. 品牌設定 ---
+BRAND_COLORS = {
+    "violet": "#3A278C",
+    "violet_75": "#6B5DA9",
+    "gold": "#AC885C",
+    "gold_75": "#C1A685",
+    "white": "#FFFFFF",
+    "grey_text": "#333333",
+    "light_grey_bg": "#F4F4F4"
+}
+
+FONTS = "font-family: 'Montserrat', 'Source Han Sans TC', 'Microsoft JhengHei', sans-serif;"
+
+# --- 2. 模板定義 (HTML Snippets) ---
+
+# HEADER 模板
+HEADERS = {
+    "標準簡單 LOGO（圖片版）": f"""
+        <tr>
+            <td align="center" style="background-color: {BRAND_COLORS['white']}; padding: 0;">
+                <a href="https://omplexity.com" target="_blank" style="text-decoration: none;">
+                    <img src="https://s3.amazonaws.com/cloud.kumu.io/accounts/547252/1183179/6ccc7a41-1154-4be8-889c-0362e3bff0c0.png" 
+                         width="600" 
+                         alt="Omplexity Recruiting"
+                         style="display: block; border: 0; max-width: 100%; height: auto;">
+                </a>
+            </td>
+        </tr>
+    """,
+    "商務版（圖片版）": f"""
+        <tr>
+            <td align="center" style="background-color: {BRAND_COLORS['white']}; padding: 0;">
+                <a href="https://omplexity.com" target="_blank" style="text-decoration: none;">
+                    <img src="https://s3.amazonaws.com/cloud.kumu.io/accounts/547252/1183179/718e1e04-9dbd-4cb7-86c5-835cb935b19b.png" 
+                         width="600" 
+                         alt="Omplexity Recruiting"
+                         style="display: block; border: 0; max-width: 100%; height: auto;">
+                </a>
+            </td>
+        </tr>
+    """,
+    "MKS 模仿款（圖片版）": f"""
+        <tr>
+            <td align="center" style="background-color: {BRAND_COLORS['white']}; padding: 0;">
+                <a href="https://omplexity.com" target="_blank" style="text-decoration: none;">
+                    <img src="https://s3.amazonaws.com/cloud.kumu.io/accounts/547252/1183179/719718fb-626b-4e77-a337-3b4d72428e1b.png" 
+                         width="600" 
+                         alt="Omplexity Recruiting"
+                         style="display: block; border: 0; max-width: 100%; height: auto;">
+                </a>
+            </td>
+        </tr>
+    """,
+    "七星連珠（圖片版）": f"""
+        <tr>
+            <td align="center" style="background-color: {BRAND_COLORS['white']}; padding: 0;">
+                <a href="https://omplexity.com" target="_blank" style="text-decoration: none;">
+                    <img src="https://s3.amazonaws.com/cloud.kumu.io/accounts/547252/1183179/ca92b88c-9374-4fbb-b260-abbe31b4b026.png" 
+                         width="600" 
+                         alt="Omplexity Recruiting"
+                         style="display: block; border: 0; max-width: 100%; height: auto;">
+                </a>
+            </td>
+        </tr>
+    """,
+    "課程邀請 (Invitation)": f"""
+        <tr>
+            <td align="center" style="background-color: {BRAND_COLORS['white']}; border-bottom: 4px solid {BRAND_COLORS['violet']}; padding: 30px 0;">
+                 <h1 style="color: {BRAND_COLORS['violet']}; margin: 0; font-size: 24px; letter-spacing: 2px; {FONTS}">
+                    OMPLEXITY <span style="color: {BRAND_COLORS['gold']};">ACADEMY</span>
+                </h1>
+            </td>
+        </tr>
+    """
+}
+
+# BODY 模板 (預設內容，可編輯)
+# 注意：這裡使用 HTML 標籤來確保排版精美 (例如 <b> 粗體, <br> 換行, <ul> 列表)
+BODY_TEMPLATES = {
+    "自訂內容 (Blank)": "",
+    
+    "Lv1 實體班開課通知 (1)": """
+        <p>親愛的修課學員：</p>
+
+        <p>新一期的【系統思考工作坊｜基礎入門】確定於下週六（XX/XX）開課，課程時間為 XX:XX (XX:XX 開始入場）至 XX:XX，為線下課程形式，屆時再請您準時出席。</p>
+
+        <p>我們想邀請您加入本課程 <a href="https://line.me/ti/g/EsFQa4aTJ_" target="_blank" style="color: #3A278C; text-decoration: underline;">Line 群組</a>，以方便接收課程相關資訊。若有任何與課程相關之問題也可在群組提出，我們將於一日內回覆您。</p>
+
+        <p style="color: #AC885C; font-weight: bold; margin-top: 20px; font-size: 16px;">課程資訊</p>
+        <p>
+            時間: XX/XX (六) XX:XX - XX:XX<br>
+            地點: Happ. 小樹屋 - XX X<br>
+            地址:臺北市XX XX樓-XX房
+        </p>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+        <p>本課程不需要任何先備知識，但若您有興趣在課程前對系統思考有初步的了解，這裡也提供您一些可以閱讀的素材:</p>
+
+        <p><strong>關於系統思考的五分鐘介紹影片（英文）:</strong></p>
+        <ul>
+            <li style="margin-bottom: 5px;"><a href="https://www.youtube.com/watch?v=GPW0j2Bo_eY" target="_blank" style="color: #3A278C; text-decoration: none;">系統思考：Systems Thinking</a></li>
+            <li style="margin-bottom: 5px;"><a href="https://youtu.be/o1i49S5rSBo?feature=shared" target="_blank" style="color: #3A278C; text-decoration: none;">Omplexity 解說系列：系統思考小教室</a></li>
+        </ul>
+
+        <p><strong>系統思考相關文章（由 Omplexity 官方發布）：</strong></p>
+        <ul>
+            <li style="margin-bottom: 5px;"><a href="https://www.omplexity.com/blog-post/drawing-causal-loop-diagrams-tips" target="_blank" style="color: #3A278C; text-decoration: none;">系統思考基礎</a></li>
+            <li style="margin-bottom: 5px;"><a href="https://www.omplexity.com/social-impact/wbcsd" target="_blank" style="color: #3A278C; text-decoration: none;">系統思考專案分享</a></li>
+        </ul>
+
+        <p><strong>系統思考書籍：</strong></p>
+        <ul>
+            <li style="margin-bottom: 5px;"><a href="https://www.books.com.tw/products/0010832070" target="_blank" style="color: #3A278C; text-decoration: none;">⟪第五項修練⟫：第一章和第五章</a></li>
+            <li style="margin-bottom: 5px;"><a href="https://www.books.com.tw/products/0010702990" target="_blank" style="color: #3A278C; text-decoration: none;">⟪系統思考：克服盲點、面對複雜性、見樹又見林的整體思考⟫</a></li>
+        </ul>
+
+        <p>若有任何關於課程的問題，歡迎直接回覆此封信詢問，或是透過 Line 社團與私訊 Facebook 粉絲專頁進行聯繫，將由專人即時回覆。</p>
+
+        <p>
+            期待在課堂中見到您！<br>
+            Best regards,<br>
+            Omplexity Team
+        </p>
+    """,  # <--- ⚠️ 記得這裡要有一個逗號，不然下一個模板會報錯
+
+    "Lv1 實體班課前提醒 (2)": f"""
+        <p>親愛的修課學員：</p>
+        明天（XX/XX）XX:XX-XX:XX 將是【系統思考工作坊｜基礎入門】，請大家記得準時參與。
+        <br><br>
+        <b style="color: {BRAND_COLORS['gold']};">課程資訊</b><br>
+        時間：XX/XX (六) XX:XX - XX:XX<br>
+        地點： Happ. 小樹屋 - XX X<br>
+        地址：臺北市XX XX樓-XX房<br>
+        課程為分組學習，分組名單於本信附件，歡迎大家提前確認，到場後便可直接入座。
+        <br><br>
+        <b style="color: {BRAND_COLORS['gold']};">課程討論平台</b><br>
+        請加入本課程 Line 群組，以方便接收課程相關資訊。<br>
+        若有任何與課程相關之問題也可在群組提出，我們將於一日內回覆您。
+        <br><br>
+        附件為分組名單、學習者手冊、與課程講義，歡迎事先參閱。若有任何關於課程的問題，歡迎直接回覆此封信詢問，或是透過私訊 Facebook 粉絲專頁進行聯繫，將由專人即時回覆。
+        <br><br>
+        現場見！<br>
+        Best regards,<br>
+        Omplexity Team
+    """,  
+
+    "Lv1 實體班結訓通知(3)": f"""
+        <p>親愛的修課學員：</p>
+        <p>感謝大家的熱情參與，也歡迎您正式加入 Omplexity 大家庭，以下幾點事項提醒：</p>
+
+        <p style="color: #AC885C; font-weight: bold; margin-top: 25px; font-size: 16px;">課程資料</p>
+        <ul>
+            <li style="margin-bottom: 10px;">
+                請大家花 2 分鐘左右填寫 <a href="https://forms.gle/s9FW9GQkvPdcqZ949" target="_blank" style="color: #3A278C; text-decoration: underline;">課後問卷</a>，告訴我們您對課程的寶貴想法！
+            </li>
+            <li style="margin-bottom: 10px;">
+                連結中為最新的 <a href="https://omplexity.notion.site/Lv1-248eb6f8b3ec805b89c0d815f7c2f3eb?source=copy_link" target="_blank" style="color: #3A278C; text-decoration: underline;">補充教材</a>，也可以透過我們準備的 <a href="https://docs.google.com/forms/d/e/1FAIpQLSc1Kol8RzX-broG12aawbDneNOXGV0XtTBy_U-_RIZF_RZx1g/viewform?usp=header" target="_blank" style="color: #3A278C; text-decoration: underline;">課後考卷</a> 自行練習。<br>
+                <span style="font-size: 13px; color: #666;">（考卷提交後會自動批改回答，並解釋各題的正確答案，可重複作答至滿分為止）</span>
+            </li>
+        </ul>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 25px 0;">
+
+        <p style="color: #AC885C; font-weight: bold; margin-top: 20px; font-size: 16px;">延伸課程：系統思考策略分析實作（進階班 Lv2）</p>
+        
+        <p>下次開課時段為 2025/9/13，也是 <a href="https://www.accupass.com/event/2501030844171431680844" target="_blank" style="color: #3A278C; text-decoration: underline;">實體工作坊</a>。</p>
+        
+        <p style="background-color: #F9F9F9; padding: 15px; border-left: 3px solid #AC885C; margin: 15px 0;">
+            <strong>🚀 限時優惠：</strong><br>
+            目前 Accupass 上有早鳥優惠，但有興趣的基礎班學員只要在 <strong>明日 23:59 前</strong> 回覆本信說明報名意願並完成付款，便可享有兩人同行的 75 折優惠。
+        </p>
+
+        <p><strong>學員 1-1 教練服務：</strong></p>
+        <p>
+            只要學員報名九月的進階班，並在 <strong>8/19 晚上 23:59 分前</strong>，將 150-200 字的課程心得發布下面的 LINE <a href="https://line.me/ti/g2/6WNUk8UwZsB_tfKPseF5YqTF2ID4Wfrc_2eW3g?utm_source=invitation&utm_medium=link_copy&utm_campaign=default" target="_blank" style="color: #3A278C; text-decoration: underline;">系統思考學習者社群</a>，截圖後回覆本信，便可獲得與顧問免費的 <a href="https://www.accupass.com/event/2402250253491945529513" target="_blank" style="color: #3A278C; text-decoration: underline;">1-1 系統思考教練服務（市值 3000 元）</a>，歡迎大家多加把握機會。
+        </p>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 25px 0;">
+
+        <p style="color: #AC885C; font-weight: bold; margin-top: 20px; font-size: 16px;">加入社群</p>
+        <p>
+            最後，不論有沒有要完成作業，都歡迎大家加入 <a href="https://line.me/ti/g2/6WNUk8UwZsB_tfKPseF5YqTF2ID4Wfrc_2eW3g?utm_source=invitation&utm_medium=link_copy&utm_campaign=default" target="_blank" style="color: #3A278C; text-decoration: underline;">系統思考學習者社群</a>（請加入主社群，名稱為系統思考學習者社群），輸入 <strong>2025/08 Lv1</strong>，與所有 Omplexity 學員一同討論系統思考。
+        </p>
+
+        <br>
+        <p>若有任何問題，請不吝再寄信詢問。期待在未來的課程中與大家見面！</p>
+        <p>
+            Best regards,<br>
+            Omplexity Team
+        </p>
+    """,
+}
+
+# FOOTER 模板
+FOOTERS = {
+    "標準聯繫 (Standard)": f"""
+        <tr>
+            <td align="center" style="background-color: {BRAND_COLORS['violet']}; padding: 40px 20px;">
+                <p style="color: {BRAND_COLORS['white']}; font-size: 18px; margin-bottom: 10px; {FONTS}">
+                    Omplexity 系統變革顧問
+                </p>
+                <p style="color: {BRAND_COLORS['violet_75']}; font-size: 12px; line-height: 1.5; {FONTS}">
+                    臺北市大同區迪化街1段82號4樓 <br>
+                    Contact us: service@omplexity.org
+                </p>
+                <div style="margin-top: 25px;">
+                    <a href="https://omplexity.com" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                        <img src="https://s3.amazonaws.com/cloud.kumu.io/accounts/547252/1183179/1732bec1-3b6b-4030-a403-fe86c436fb66.png" 
+                             width="32" height="32" alt="Website" style="border: 0; vertical-align: middle;">
+                    </a>
+
+                    <a href="https://www.linkedin.com/company/omplexity" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                        <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" 
+                             width="32" height="32" alt="LinkedIn" style="border: 0; vertical-align: middle;">
+                    </a>
+
+                    <a href="https://www.facebook.com/omplexity" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                        <img src="https://cdn-icons-png.flaticon.com/512/124/124010.png" 
+                             width="32" height="32" alt="Facebook" style="border: 0; vertical-align: middle;">
+                    </a>
+                </div>
+            </td>
+        </tr>
+    """,
+    "簡約版 (Simple)": f"""
+        <tr>
+            <td align="center" style="background-color: {BRAND_COLORS['light_grey_bg']}; padding: 20px;">
+                <p style="color: {BRAND_COLORS['grey_text']}; font-size: 12px; {FONTS}">
+                    © 2026 Omplexity. All rights reserved.
+                </p>
+            </td>
+        </tr>
+    """,
+
+    "萬用版本 (Universal)": f"""
+        <tr>
+            <td align="center" style="background-color: {BRAND_COLORS['light_grey_bg']}; padding: 40px 30px;">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                        <td valign="top" align="left" width="60%" style="padding-right: 20px;">
+                            <p style="margin: 0; font-size: 16px; font-weight: bold; color: #000000; {FONTS}">
+                                Omplexity 系統變革顧問公司
+                            </p>
+                            <p style="margin: 5px 0 15px 0; font-size: 14px; color: #333; {FONTS}">
+                                <span style="font-size: 16px; margin-right: 5px;">✉</span>
+                                <a href="mailto:service@omplexity.org" style="color: #333; text-decoration: underline;">service@omplexity.org</a>
+                            </p>
+                            
+                            <div style="margin-top: 15px;">
+                                <a href="https://linkedin.com/company/omplexity" target="_blank" style="text-decoration: none; margin-right: 8px;">
+                                    <span style="display: inline-block; width: 24px; height: 24px; background-color: #000; color: #fff; text-align: center; line-height: 24px; font-weight: bold; border-radius: 3px; font-size: 14px; font-family: sans-serif;">in</span>
+                                </a>
+                                <a href="https://www.facebook.com/omplexity" target="_blank" style="text-decoration: none; margin-right: 8px;">
+                                    <span style="display: inline-block; width: 24px; height: 24px; background-color: #000; color: #fff; text-align: center; line-height: 24px; font-weight: bold; border-radius: 3px; font-size: 14px; font-family: sans-serif;">f</span>
+                                </a>
+                                <a href="https://medium.com/@Omplexity" target="_blank" style="text-decoration: none; margin-right: 8px;">
+                                    <span style="display: inline-block; width: 24px; height: 24px; background-color: #000; color: #fff; text-align: center; line-height: 24px; font-weight: bold; border-radius: 3px; font-size: 14px; font-family: serif;">M</span>
+                                </a>
+                                <a href="https://www.youtube.com/@OmplexityOfficial" target="_blank" style="text-decoration: none; margin-right: 8px;">
+                                    <span style="display: inline-block; width: 24px; height: 24px; background-color: #000; color: #fff; text-align: center; line-height: 24px; font-weight: bold; border-radius: 3px; font-size: 12px; font-family: sans-serif;">▶</span>
+                                </a>
+                            </div>
+                        </td>
+                        
+                        <td valign="top" align="right" width="40%">
+                            <div style="border-left: 2px solid {BRAND_COLORS['gold']}; padding-left: 15px; text-align: left; display: inline-block;">
+                                <p style="margin: 0; font-size: 14px; color: #666; font-style: italic; font-family: 'Times New Roman', serif; line-height: 1.4;">
+                                    Aligning Resources<br>for Systemic Impact
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    """
+}
+
+# --- 3. 工具介面設定 (Streamlit UI) ---
+st.set_page_config(page_title="Omplexity Email Builder", layout="wide")
+
+# CSS 樣式
+st.markdown(f"""
+    <style>
+    .stApp {{ background-color: #FAFAFA; }}
+    .stButton>button {{ background-color: {BRAND_COLORS['violet']} !important; color: white !important; border-radius: 0px; }}
+    h1, h2, h3 {{ color: {BRAND_COLORS['violet']}; font-family: 'Montserrat', sans-serif; }}
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("Omplexity 專業電子郵件生成器")
+st.markdown("模板需要從程式碼中更改；Body 可以直接用HTML跟CSS的語法寫；完成即可複製右邊樣式貼上寄出")
+
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    st.subheader("1. 結構設定")
+    selected_header_name = st.selectbox("選擇 Header 樣式", list(HEADERS.keys()))
+    selected_footer_name = st.selectbox("選擇 Footer 樣式", list(FOOTERS.keys()))
+
+    st.divider()
+    
+    st.subheader("2. 內容編輯 (Body)")
+    
+    # --- Body Template Selection Logic ---
+    # 使用 Session State 來記住當前的 Body 內容，避免切換時丟失或無法更新
+    
+    # 1. 選擇模板
+    selected_body_template = st.selectbox("快速載入內容模板", list(BODY_TEMPLATES.keys()))
+    
+    # 2. 判斷是否切換了模板，如果是，則更新 text_area 的內容
+    if "last_selected_template" not in st.session_state:
+        st.session_state.last_selected_template = selected_body_template
+        st.session_state.body_text = BODY_TEMPLATES[selected_body_template]
+    
+    if st.session_state.last_selected_template != selected_body_template:
+        st.session_state.body_text = BODY_TEMPLATES[selected_body_template]
+        st.session_state.last_selected_template = selected_body_template
+
+    st.info("💡 LLM Prompt： 請幫我將給你的文字內容轉換成 HTML + CSS 格式的 email body,並符合以下要求: 品牌色系使用: (1) 主色 (紫色): #3A278C (Violet) (2) 強調色 (金色): #AC885C (Gold)可使用這些顏色的 75%、50%、25% 透明度變化；排版風格:(1)清晰易讀,(2)適合 email 呈現(3)重要資訊需要醒目標示(4)使用適當的間距和區塊劃分(5)標題使用金色強調；輸出格式:(1)只需要 <body> 標籤內的內容(2)不需要 <!DOCTYPE>, <html>, <head> 等標籤(3)CSS 使用 inline style 或 <style> 標籤寫在 body 內(4)適合直接嵌入 email 系統；功能需求:請保留 <a href=> 供後續填入實際連結，以下是我要排版的內容：")
+    
+    st.info("💡 提示：下方框內含有 HTML 標籤 (如 <br> 代表換行)，您可以直接修改文字內容，但建議保留標籤以維持排版。")
+
+    
+    # 3. 顯示可編輯的 Text Area (綁定 session_state)
+    body_content = st.text_area("郵件內文 (可自由微調)，但記得用 LLM 生成時提示詞要下只留Body不要頭尾", key="body_text", height=400)
+    
+    # 行動呼籲按鈕 (可選)
+    include_button = st.checkbox("加入行動呼籲按鈕 (CTA Button)")
+    if include_button:
+        btn_text = st.text_input("按鈕文字", "立即報名")
+        btn_url = st.text_input("按鈕連結", "https://omplexity.com")
+
+with col2:
+    st.subheader("3. 預覽與輸出")
+    
+    # 組合 HTML
+    button_html = ""
+    if include_button:
+        button_html = f"""
+            <table border="0" cellspacing="0" cellpadding="0" style="margin-top: 30px;">
+                <tr>
+                    <td align="center" style="border-radius: 4px;" bgcolor="{BRAND_COLORS['gold']}">
+                        <a href="{btn_url}" target="_blank" style="font-size: 14px; font-family: 'Montserrat', sans-serif; color: #ffffff; text-decoration: none; padding: 12px 24px; border: 1px solid {BRAND_COLORS['gold']}; display: inline-block; font-weight: bold;">
+                            {btn_text}
+                        </a>
+                    </td>
+                </tr>
+            </table>
+        """
+
+    full_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: {BRAND_COLORS['light_grey_bg']};">
+        <center>
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: {BRAND_COLORS['light_grey_bg']}; table-layout: fixed;">
+                <tr>
+                    <td align="center" style="padding: 20px 0;">
+                        <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                            
+                            {HEADERS[selected_header_name]}
+                            
+                            <tr>
+                                <td align="left" style="padding: 40px 50px;">
+                                    <div style="color: {BRAND_COLORS['grey_text']}; font-size: 15px; line-height: 1.8; {FONTS}">
+                                        {body_content}
+                                    </div>
+                                    
+                                    {button_html}
+                                </td>
+                            </tr>
+                            
+                            {FOOTERS[selected_footer_name]}
+                            
+                        </table>
+                        <p style="text-align:center; font-size: 10px; color: #999; margin-top: 20px; {FONTS}">
+                            此郵件由 Omplexity 內部系統生成
+                        </p>
+                    </td>
+                </tr>
+            </table>
+        </center>
+    </body>
+    </html>
+    """
+
+    # 顯示預覽
+    st.components.v1.html(full_html, height=800, scrolling=True)
+
+    # 輸出 HTML 代碼
+    st.text_area("HTML 原始碼 (複製貼上到 Gmail/Outlook)", full_html, height=100)
+    
+    st.download_button(
+        label="下載 HTML 檔案",
+        data=full_html,
+        file_name="omplexity_email.html",
+        mime="text/html"
+    )
